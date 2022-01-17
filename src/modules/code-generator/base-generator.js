@@ -28,14 +28,25 @@ export default class BaseGenerator {
     throw new Error('Not implemented.')
   }
 
-  _getHeader() {
-    let hdr = this._options.wrapAsync ? this._wrappedHeader : this._header
-    hdr = this._options.headless ? hdr : hdr?.replace('launch()', 'launch({ headless: false })')
-    return hdr
+  _getHeader(initialHref, isJest) {
+    if (initialHref && isJest) {
+      let hdr = this._jestHeader(initialHref)
+      hdr = this._options.headless ? hdr : hdr?.replace('launch()', 'launch({ headless: false })')
+      return hdr     
+    } else {
+      let hdr = this._options.wrapAsync ? this._wrappedHeader : this._header
+      hdr = this._options.headless ? hdr : hdr?.replace('launch()', 'launch({ headless: false })')
+      return hdr      
+    }
+
   }
 
-  _getFooter() {
-    return this._options.wrapAsync ? this._wrappedFooter : this._footer
+  _getFooter(isJest) {
+    if (isJest) {
+      return this._jestFooter
+    } else {
+      return this._options.wrapAsync ? this._wrappedFooter : this._footer
+    }
   }
 
   _parseEvents(events) {

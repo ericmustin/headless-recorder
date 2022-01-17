@@ -16,6 +16,23 @@ const wrappedHeader = `(async () => {
 const wrappedFooter = `  await browser.close()
 })()`
 
+function jestHeader(href) {
+  return `describe('expectation behavior', () => {
+
+  beforeAll(async () => {
+    await page.goto("${href}");
+  });
+
+  afterAll(async () => {
+    await browser.close()
+  });
+
+  it("should check for presence of text at ${href}", async () => {\n`
+}
+
+const jestFooter = `  })
+})`
+
 export default class PuppeteerCodeGenerator extends BaseGenerator {
   constructor(options) {
     super(options)
@@ -23,10 +40,15 @@ export default class PuppeteerCodeGenerator extends BaseGenerator {
     this._footer = footer
     this._wrappedHeader = wrappedHeader
     this._wrappedFooter = wrappedFooter
+    this._jestHeader = jestHeader
+    this._jestFooter = jestFooter
   }
 
   generate(events) {
-    return importPuppeteer + this._getHeader() + this._parseEvents(events) + this._getFooter()
+    console.log('yes')
+    const initialHref = events.find( event => (event.action && event.action == 'GOTO') ) ? events.find( event => (event.action && event.action == 'GOTO') ).href : ""
+
+    return importPuppeteer + this._getHeader(initialHref, true) + this._parseEvents(events) + this._getFooter(true)
   }
 
   _handleViewport(width, height) {
