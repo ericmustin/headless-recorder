@@ -1,8 +1,10 @@
 const CONTENT_SCRIPT_PATH = 'js/content-script.js'
-const RUN_URL = 'https://app.checklyhq.com/checks/new/browser'
+// TODO: fix
+// const RUN_URL = 'https://app.checklyhq.com/checks/new/browser'
+const RUN_URL = 'http://localhost:3000/tests/new'
 const DOCS_URL = 'https://www.checklyhq.com/docs/headless-recorder'
-const SIGNUP_URL =
-  'https://www.checklyhq.com/product/synthetic-monitoring/?utm_source=Chrome+Extension&utm_medium=Headless+Recorder+Chrome+Extension&utm_campaign=Headless+Recorder&utm_id=Open+Source'
+// const SIGNUP_URL =
+//   'https://www.checklyhq.com/product/synthetic-monitoring/?utm_source=Chrome+Extension&utm_medium=Headless+Recorder+Chrome+Extension&utm_campaign=Headless+Recorder&utm_id=Open+Source'
 
 export default {
   getActiveTab() {
@@ -56,9 +58,14 @@ export default {
   },
 
   openChecklyRunner({ code, runner, isLoggedIn }) {
+    // TODO: fix
+    // if (!_isLoggedIn) {
+    //   chrome.tabs.create({ url: SIGNUP_URL })
+    //   return
+    // }
+
     if (!isLoggedIn) {
-      chrome.tabs.create({ url: SIGNUP_URL })
-      return
+      // TODO: idk
     }
 
     const script = encodeURIComponent(btoa(code))

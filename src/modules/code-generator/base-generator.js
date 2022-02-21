@@ -28,14 +28,25 @@ export default class BaseGenerator {
     throw new Error('Not implemented.')
   }
 
-  _getHeader() {
-    let hdr = this._options.wrapAsync ? this._wrappedHeader : this._header
-    hdr = this._options.headless ? hdr : hdr?.replace('launch()', 'launch({ headless: false })')
-    return hdr
+  _getHeader(initialHref, isJest) {
+    if (initialHref && isJest) {
+      let hdr = this._jestHeader(initialHref)
+      hdr = this._options.headless ? hdr : hdr?.replace('launch()', 'launch({ headless: false })')
+      return hdr     
+    } else {
+      let hdr = this._options.wrapAsync ? this._wrappedHeader : this._header
+      hdr = this._options.headless ? hdr : hdr?.replace('launch()', 'launch({ headless: false })')
+      return hdr      
+    }
+
   }
 
-  _getFooter() {
-    return this._options.wrapAsync ? this._wrappedFooter : this._footer
+  _getFooter(isJest) {
+    if (isJest) {
+      return this._jestFooter
+    } else {
+      return this._options.wrapAsync ? this._wrappedFooter : this._footer
+    }
   }
 
   _parseEvents(events) {
@@ -44,7 +55,17 @@ export default class BaseGenerator {
     if (!events) return result
 
     for (let i = 0; i < events.length; i++) {
-      const { action, selector, value, href, keyCode, tagName, frameId, frameUrl } = events[i]
+      const {
+        action,
+        selector,
+        value,
+        href,
+        keyCode,
+        tagName,
+        frameId,
+        frameUrl,
+        selection,
+      } = events[i]
       const escapedSelector = selector ? selector?.replace(/\\/g, '\\\\') : selector
 
       // we need to keep a handle on what frames events originate from
@@ -53,7 +74,11 @@ export default class BaseGenerator {
       switch (action) {
         case 'keydown':
           if (keyCode === this._options.keyCode) {
-            this._blocks.push(this._handleKeyDown(escapedSelector, value, keyCode))
+            if (value) {
+              this._blocks.push(this._handleKeyDown(escapedSelector, value, keyCode))
+            } else if (selection) {
+              this._blocks.push(this._handleSelection(escapedSelector, selection, keyCode))
+            }
           }
           break
         case 'click':
@@ -83,7 +108,7 @@ export default class BaseGenerator {
     if (this._hasNavigation && this._options.waitForNavigation) {
       const block = new Block(this._frameId, {
         type: headlessActions.NAVIGATION_PROMISE,
-        value: 'const navigationPromise = page.waitForNavigation()',
+        value: 'const navigationPromise = page.waitForNavigation(); ',
       })
       this._blocks.unshift(block)
     }
@@ -129,7 +154,7 @@ export default class BaseGenerator {
     const block = new Block(this._frameId)
     block.addLine({
       type: eventsToRecord.KEYDOWN,
-      value: `await ${this._frame}.type('${selector}', '${this._escapeUserInput(value)}')`,
+      value: `await ${this._frame}.type('${selector}', '${this._escapeUserInput(value)}'); `,
     })
     return block
   }
@@ -139,12 +164,12 @@ export default class BaseGenerator {
     if (this._options.waitForSelectorOnClick) {
       block.addLine({
         type: eventsToRecord.CLICK,
-        value: `await ${this._frame}.waitForSelector('${selector}')`,
+        value: `await ${this._frame}.waitForSelector('${selector}'); `,
       })
     }
     block.addLine({
       type: eventsToRecord.CLICK,
-      value: `await ${this._frame}.click('${selector}')`,
+      value: `await ${this._frame}.click('${selector}'); `,
     })
     return block
   }
@@ -152,14 +177,14 @@ export default class BaseGenerator {
   _handleChange(selector, value) {
     return new Block(this._frameId, {
       type: eventsToRecord.CHANGE,
-      value: `await ${this._frame}.select('${selector}', '${value}')`,
+      value: `await ${this._frame}.select('${selector}', '${value}'); `,
     })
   }
 
   _handleGoto(href) {
     return new Block(this._frameId, {
       type: headlessActions.GOTO,
-      value: `await ${this._frame}.goto('${href}')`,
+      value: `await ${this._frame}.goto('${href}'); `,
     })
   }
 
@@ -173,14 +198,14 @@ export default class BaseGenerator {
     if (value) {
       return new Block(this._frameId, {
         type: headlessActions.SCREENSHOT,
-        value: `const element${this._screenshotCounter} = await page.$('${value}')
-await element${this._screenshotCounter}.screenshot({ path: 'screenshot_${this._screenshotCounter}.png' })`,
+        value: `const element${this._screenshotCounter} = await page.$('${value}');
+await element${this._screenshotCounter}.screenshot({ path: 'screenshot_${this._screenshotCounter}.png' }); `,
       })
     }
 
     return new Block(this._frameId, {
       type: headlessActions.SCREENSHOT,
-      value: `await ${this._frame}.screenshot({ path: 'screenshot_${this._screenshotCounter}.png', fullPage: true })`,
+      value: `await ${this._frame}.screenshot({ path: 'screenshot_${this._screenshotCounter}.png', fullPage: true }); `,
     })
   }
 
@@ -189,10 +214,17 @@ await element${this._screenshotCounter}.screenshot({ path: 'screenshot_${this._s
     if (this._options.waitForNavigation) {
       block.addLine({
         type: headlessActions.NAVIGATION,
-        value: `await navigationPromise`,
+        value: `await navigationPromise; `,
       })
     }
     return block
+  }
+
+  _handleSelection(selector, selection) {
+    return new Block(this._frameId, {
+      type: eventsToRecord.KEYDOWN,
+      value: `await expect(${this._frame}.locator('${selector}')).toContainText('${selection}'); `,
+    })
   }
 
   _postProcessSetFrames() {
@@ -202,14 +234,14 @@ await element${this._screenshotCounter}.screenshot({ path: 'screenshot_${this._s
         if (line.frameId && Object.keys(this._allFrames).includes(line.frameId.toString())) {
           const declaration = `const frame_${line.frameId} = frames.find(f => f.url() === '${
             this._allFrames[line.frameId]
-          }')`
+          }'); `
           this._blocks[i].addLineToTop({
             type: headlessActions.FRAME_SET,
             value: declaration,
           })
           this._blocks[i].addLineToTop({
             type: headlessActions.FRAME_SET,
-            value: 'let frames = await page.frames()',
+            value: 'let frames = await page.frames(); ',
           })
           delete this._allFrames[line.frameId]
           break

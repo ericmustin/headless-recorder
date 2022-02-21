@@ -44,7 +44,7 @@
       </Button>
       <Button @click="run" v-show="code">
         <img src="/icons/light/zap.svg" class="mr-1" alt="thunder" />
-        Run on Checkly
+        Run on Checkly Fork
       </Button>
     </div>
 

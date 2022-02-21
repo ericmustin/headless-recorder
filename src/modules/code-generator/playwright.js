@@ -2,12 +2,18 @@ import Block from '@/modules/code-generator/block'
 import { headlessActions } from '@/modules/code-generator/constants'
 import BaseGenerator from '@/modules/code-generator/base-generator'
 
-const importPlaywright = `const { chromium } = require('playwright');\n`
+// const importPlaywright = `const { chromium } = require('playwright');\n`
 
-const header = `const browser = await chromium.launch()
-const page = await browser.newPage()`
+const importPlaywright = `const { test, expect } = require('@playwright/test'); 
+`
 
-const footer = `await browser.close()`
+// const header = `const browser = await chromium.launch()
+// const page = await browser.newPage()`
+const header = `test('basic test ${Math.floor (Math.random ()*100000)}', async ({ page }) => {
+  await page.setDefaultNavigationTimeout(7000); `
+
+// const footer = `await browser.close()`
+const footer = `}); `
 
 const wrappedHeader = `(async () => {
   ${header}\n`
@@ -31,14 +37,14 @@ export default class PlaywrightCodeGenerator extends BaseGenerator {
   _handleViewport(width, height) {
     return new Block(this._frameId, {
       type: headlessActions.VIEWPORT,
-      value: `await ${this._frame}.setViewportSize({ width: ${width}, height: ${height} })`,
+      value: `await ${this._frame}.setViewportSize({ width: ${width}, height: ${height} }); `,
     })
   }
 
   _handleChange(selector, value) {
     return new Block(this._frameId, {
       type: headlessActions.CHANGE,
-      value: `await ${this._frame}.selectOption('${selector}', '${value}')`,
+      value: `await ${this._frame}.selectOption('${selector}', '${value}'); `,
     })
   }
 }
